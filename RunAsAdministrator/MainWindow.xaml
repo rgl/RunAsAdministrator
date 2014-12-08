@@ -1,0 +1,52 @@
+﻿<Window x:Class="RunAsAdministrator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:RunAsAdministrator"
+        Title="Run As Administrator"
+        Icon="App.ico"
+        Width="600"
+        Height="400"
+        ResizeMode="CanResizeWithGrip"
+        AllowDrop="True"
+        Drop="MainWindow_OnDrop">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="10">
+            <DockPanel>
+                <app:FinderTool SelectWindow="FinderTool_OnSelectWindow" EndSelectWindow="FinderTool_OnEndSelectWindow" />
+                <TextBlock TextWrapping="Wrap" Margin="5,0" VerticalAlignment="Center">Drag the Finder Tool over an application window or drop an application here.</TextBlock>
+            </DockPanel>
+            <StackPanel Name="SelectedApplicationPanel" Visibility="Collapsed">
+                <DockPanel>
+                    <Image DockPanel.Dock="Left" Source="{Binding Icon}" Width="32" Margin="0,0,5,0"/>
+                    <StackPanel>
+                        <TextBlock FontWeight="Bold" Text="{Binding Name}" TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{x:Static SystemColors.GrayTextBrush}" Text="{Binding Path}" TextWrapping="Wrap"></TextBlock>
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </StackPanel>
+        <ListBox Name="ApplicationListBox" Margin="10,0,10,10" ItemsSource="{Binding Applications}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <DockPanel>
+                        <DockPanel.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Stop running as Administrator..." Click="ApplicationListBox_MenuItem_Delete_OnClick"/>
+                            </ContextMenu>
+                        </DockPanel.ContextMenu>
+                        <Image DockPanel.Dock="Left" Source="{Binding Icon}" Width="32" Margin="0,0,5,0"/>
+                        <StackPanel Orientation="Vertical">
+                            <TextBlock TextWrapping="Wrap" FontWeight="Bold" Text="{Binding Name}"/>
+                            <TextBlock TextWrapping="Wrap" Foreground="{x:Static SystemColors.GrayTextBrush}" Text="{Binding Path}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</Window>
