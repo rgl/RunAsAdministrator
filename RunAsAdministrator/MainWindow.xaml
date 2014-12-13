@@ -37,6 +37,7 @@
                         <DockPanel.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Stop running as Administrator..." Click="ApplicationListBox_MenuItem_Delete_OnClick"/>
+                                <MenuItem Header="Open file location" Click="ApplicationListBox_MenuItem_OpenFileLocation_OnClick"/>
                             </ContextMenu>
                         </DockPanel.ContextMenu>
                         <Image DockPanel.Dock="Left" Source="{Binding Icon}" Width="32" Margin="0,0,5,0"/>

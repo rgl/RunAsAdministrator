@@ -201,6 +201,13 @@ namespace RunAsAdministrator
 
             SaveCurrentUserApplications();
         }
+
+        private void ApplicationListBox_MenuItem_OpenFileLocation_OnClick(object sender, RoutedEventArgs e)
+        {
+            var application = (Application)ApplicationListBox.SelectedItem;
+
+            Process.Start("explorer.exe", string.Format("/select,\"{0}\"", application.Path));
+        }
     }
 
     public class Application
