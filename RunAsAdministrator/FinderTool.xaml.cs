@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace RunAsAdministrator
@@ -18,6 +19,7 @@ namespace RunAsAdministrator
         private readonly int _selfProcessId;
         private IntPtr _currentWindowHwnd;
         private Window _currentWindow;
+        private FrameWindow _currentFrameWindow;
 
         public class Window
         {
@@ -120,13 +122,24 @@ namespace RunAsAdministrator
             ReleaseMouseCapture();
             Mouse.OverrideCursor = null;
             Image.Source = _defaultImageSource;
+
+            _currentWindowHwnd = IntPtr.Zero;
+
+            _currentWindow = null;
+
+            if (_currentFrameWindow != null)
+            {
+                _currentFrameWindow.Hide();
+                _currentFrameWindow.Close();
+                _currentFrameWindow = null;
+            }
+
             OnEndSelectWindow(new RoutedWindowEventArgs(EndSelectWindowEvent, window));
         }
 
         protected override void OnMouseUp(MouseButtonEventArgs e)
         {
             StopSelectWindow(_currentWindow);
-            _currentWindow = null;
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -142,12 +155,30 @@ namespace RunAsAdministrator
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            // do not run unless we are actually selecting a window.
+            if (!Focusable)
+                return;
+
             var pos = new POINT();
             
             if (!GetCursorPos(ref pos))
                 return;
 
             var hwnd = WindowFromPoint(pos);
+
+            if (_currentFrameWindow != null && hwnd == _currentFrameWindow.Hwnd)
+                return;
+
+            // select the main window.
+            while (true)
+            {
+                var parentHwnd = GetParent(hwnd);
+
+                if (parentHwnd == IntPtr.Zero)
+                    break;
+
+                hwnd = parentHwnd;
+            }
 
             if (hwnd == _currentWindowHwnd)
                 return;
@@ -165,7 +196,81 @@ namespace RunAsAdministrator
 
             _currentWindowHwnd = hwnd;
 
-            OnSelectWindow(new RoutedWindowEventArgs(SelectWindowEvent, _selfProcessId != processId ? _currentWindow : null));
+            var canSelectCurrentWindow = _selfProcessId != processId;
+
+            if (canSelectCurrentWindow)
+            {
+                RECT rect;
+
+                if (GetWindowRect(hwnd, out rect))
+                {
+                    if (_currentFrameWindow == null)
+                    {
+                        _currentFrameWindow = new FrameWindow();
+                    }
+
+                    _currentFrameWindow.Hide();
+                    _currentFrameWindow.Resize(rect);
+                }
+                else
+                {
+                    canSelectCurrentWindow = false;
+                }
+            }
+
+            if (_currentFrameWindow != null)
+            {
+                if (canSelectCurrentWindow)
+                {
+                    _currentFrameWindow.Show();
+                }
+                else
+                {
+                    _currentFrameWindow.Hide();
+                }
+            }
+
+            OnSelectWindow(new RoutedWindowEventArgs(SelectWindowEvent, canSelectCurrentWindow ? _currentWindow : null));
+        }
+
+        private class FrameWindow : System.Windows.Window
+        {
+            private const int BorderSize = 4;
+
+            public FrameWindow()
+            {
+                IsEnabled = false;
+                Focusable = false;
+                ShowActivated = false;
+                ShowInTaskbar = false;
+                WindowStyle = WindowStyle.None;
+                ResizeMode = ResizeMode.NoResize;
+                Background = Brushes.DodgerBlue;
+            }
+
+            public IntPtr Hwnd { get; private set; }
+
+            public void Resize(RECT rect)
+            {
+                var width = rect.Right - rect.Left + 1;
+                var height = rect.Bottom - rect.Top + 1;
+
+                BeginInit();
+                Left = rect.Left;
+                Top = rect.Top;
+                Width = width;
+                Height = height;
+                EndInit();
+
+                Hwnd = new WindowInteropHelper(this).EnsureHandle();
+
+                var region = CreateRectRgn(0, 0, width - 1, height - 1);
+                var holeRegion = CreateRectRgn(BorderSize, BorderSize, width - BorderSize - 1, height - BorderSize - 1);
+                CombineRgn(region, region, holeRegion, RGN_DIFF);
+                DeleteObject(holeRegion);
+
+                SetWindowRgn(Hwnd, region, true);
+            }
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -175,12 +280,45 @@ namespace RunAsAdministrator
             public int Y;
         };
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        private const int RGN_AND  = 1;
+        private const int RGN_OR   = 2;
+        private const int RGN_XOR  = 3;
+        private const int RGN_DIFF = 4;
+        private const int RGN_COPY = 5;
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetCursorPos(ref POINT pos);
 
         [DllImport("user32.dll")]
         private static extern IntPtr WindowFromPoint(POINT pos);
+
+        [DllImport("user32.dll", SetLastError=true)]
+        private static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetParent(IntPtr hWnd);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+
+        [DllImport("gdi32.dll")]
+        private static extern int CombineRgn(IntPtr hrgnDest, IntPtr hrgnSrc1, IntPtr hrgnSrc2, int fnCombineMode);
+
+        [DllImport("user32.dll")]
+        private static extern UInt16 SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr @object);
 
         [DllImport("user32.dll", SetLastError=true)]
         private static extern int GetWindowThreadProcessId(IntPtr hwnd, out int processId);
