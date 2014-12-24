@@ -1,7 +1,9 @@
 ﻿// developed by Rui Lopes (ruilopes.com). licensed under GPLv3.
 
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -197,6 +199,24 @@ namespace RunAsAdministrator
             _currentWindowHwnd = hwnd;
 
             var canSelectCurrentWindow = _selfProcessId != processId;
+
+            if (canSelectCurrentWindow)
+            {
+                try
+                {
+                    var path = _currentWindow.Process.MainModule.FileName;
+
+                    canSelectCurrentWindow = Path.GetFileName(path) != "explorer.exe";
+                }
+                catch (Win32Exception)
+                {
+                    // NB when this application is not running in 64-bit we'll get a:
+                    //     System.ComponentModel.Win32Exception
+                    //     A 32 bit processes cannot access modules of a 64 bit process.
+
+                    canSelectCurrentWindow = false;
+                }
+            }
 
             if (canSelectCurrentWindow)
             {
