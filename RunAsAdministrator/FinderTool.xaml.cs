@@ -21,6 +21,7 @@ namespace RunAsAdministrator
         private readonly int _selfProcessId;
         private IntPtr _currentWindowHwnd;
         private Window _currentWindow;
+        private bool _canSelectCurrentWindow;
         private FrameWindow _currentFrameWindow;
 
         public class Window
@@ -141,7 +142,7 @@ namespace RunAsAdministrator
 
         protected override void OnMouseUp(MouseButtonEventArgs e)
         {
-            StopSelectWindow(_currentWindow);
+            StopSelectWindow(_canSelectCurrentWindow ? _currentWindow : null);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -198,15 +199,15 @@ namespace RunAsAdministrator
 
             _currentWindowHwnd = hwnd;
 
-            var canSelectCurrentWindow = _selfProcessId != processId;
+            _canSelectCurrentWindow = _selfProcessId != processId;
 
-            if (canSelectCurrentWindow)
+            if (_canSelectCurrentWindow)
             {
                 try
                 {
                     var path = _currentWindow.Process.MainModule.FileName;
 
-                    canSelectCurrentWindow = Path.GetFileName(path) != "explorer.exe";
+                    _canSelectCurrentWindow = Path.GetFileName(path) != "explorer.exe";
                 }
                 catch (Win32Exception)
                 {
@@ -214,11 +215,11 @@ namespace RunAsAdministrator
                     //     System.ComponentModel.Win32Exception
                     //     A 32 bit processes cannot access modules of a 64 bit process.
 
-                    canSelectCurrentWindow = false;
+                    _canSelectCurrentWindow = false;
                 }
             }
 
-            if (canSelectCurrentWindow)
+            if (_canSelectCurrentWindow)
             {
                 RECT rect;
 
@@ -234,13 +235,13 @@ namespace RunAsAdministrator
                 }
                 else
                 {
-                    canSelectCurrentWindow = false;
+                    _canSelectCurrentWindow = false;
                 }
             }
 
             if (_currentFrameWindow != null)
             {
-                if (canSelectCurrentWindow)
+                if (_canSelectCurrentWindow)
                 {
                     _currentFrameWindow.Show();
                 }
@@ -250,7 +251,7 @@ namespace RunAsAdministrator
                 }
             }
 
-            OnSelectWindow(new RoutedWindowEventArgs(SelectWindowEvent, canSelectCurrentWindow ? _currentWindow : null));
+            OnSelectWindow(new RoutedWindowEventArgs(SelectWindowEvent, _canSelectCurrentWindow ? _currentWindow : null));
         }
 
         private class FrameWindow : System.Windows.Window
