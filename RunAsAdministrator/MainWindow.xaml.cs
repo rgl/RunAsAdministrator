@@ -121,6 +121,7 @@ namespace RunAsAdministrator
                 return key
                     .GetValueNames()
                     .Select(LoadApplication)
+                    .Where(a => a != null)
                     .OrderBy(a => a.Name)
                     .ToList();
             }
@@ -161,7 +162,7 @@ namespace RunAsAdministrator
                     {
                         associatedIcon.ToBitmap().Save(imageStream, ImageFormat.Png);
 
-                        imageStream.Position = 0;;
+                        imageStream.Position = 0;
 
                         var bi = new BitmapImage();
                         bi.BeginInit();
